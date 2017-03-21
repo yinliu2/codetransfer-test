@@ -21,3 +21,10 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # In order to do so, uncomment the following line.
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+
+INCLUDEPATH += /homr/ying/opencv/include/opencv
+INCLUDEPATH += /homr/ying/opencv/include/opencv2
+#INCLUDEPATH += /homr/ying/anaconda2/include/opencv
+#INCLUDEPATH += /homr/ying/anaconda2/include/opencv2
+LIBS += -L/usr/lib/x86_64-linux-gnu -lopencv_core -lopencv_imgcodecs -lopencv_highgui -lopencv_imgproc -lopencv_objdetect
+#LIBS += -L/usr/local/lib -lopencv_core -lopencv_imgcodecs -lopencv_highgui
