@@ -1,24 +1,11 @@
-﻿//#include <QCoreApplication>
-//#include <opencv/ml.h>
-#include <opencv2/opencv.hpp>
-#include <opencv2/opencv_modules.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/contrib/contrib.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/objdetect/objdetect.hpp>
-#include <QDebug>
-#include <iostream>
-#include <fstream>
-#include <stdio.h>
-using namespace std;
-using namespace cv;
+#include <facedetection.h>
+#include <motiondetector.h>
+#include <upperbodydetector.h>
 
 // extend cv::VideoCapture.  The const_cast<>()s
 // work around the missing member const on cv::VideoCapture::get().
 struct CvVideoCapture: VideoCapture
 {
-
             double getFramesPerSecond() const {
                 CvVideoCapture *const p = const_cast<CvVideoCapture *>(this);
                 const double fps = p->get(CV_CAP_PROP_FPS);
@@ -66,288 +53,427 @@ struct CvVideoCapture: VideoCapture
             CvVideoCapture(): cv::VideoCapture() {}
 };
 
-class UpperbodyDetector
+//static CvVideoCapture openVideo(const char *source)
+//{
+//    std::string filename;
+//    std::istringstream sss(source);
+//    sss >> filename;
+//    if (sss) return CvVideoCapture(filename);
+//    return CvVideoCapture(-1);
+//}
+
+// draw rectangles imageframe
+void DrawRectangleOnFrame(cv::Mat &frame, const vector2d &faces, const cv::Scalar color=cv::Scalar(255, 0, 0)) //const vector2d &prev_rects,
 {
-    private:
-    int width;
-    int height;
-    int vCodecs = CV_FOURCC('M', 'J', 'P', 'G');
-    int fps = 4;
-    String outputVideoName = "outputupper.avi";
-    VideoWriter outputVideo;
-
-    //outputVideo.open('outputupper.avi', vCodecs, fps,  Size(width, height));
-    const int fontFace = FONT_HERSHEY_SCRIPT_SIMPLEX;
-    bool multiScale  = true;
-    int  scaleFactor = 1.2;
-    int minNeighbors= 2;
-    int flag =  0 | CASCADE_SCALE_IMAGE;
-    int threshold = 0.05;
-    int minFaceSize = 40;
-    CvSize minSize = cvSize(minFaceSize, minFaceSize);
-    int stride  = 3;
-
-    public:
-    // directly initialize our member variables
-    UpperbodyDetector(int frameWidth, int frameHeight): width(frameWidth), height(frameHeight)
-    {
-        // No need for assignment here
-        Size s = Size(width, height);
-        outputVideo.open(outputVideoName, vCodecs, fps, s); // For writing the video
-    }
-    ~UpperbodyDetector();
-
-};
-
-static void detectCascade(CascadeClassifier &classifier, const Mat &gray, std::vector<Rect>&regions)
-{
-    static double scaleFactor = 1.2;
-    static const int minNeighbors = 3;
-    static const Size minSize(40,40);
-    static const Size maxSize;
-    classifier.detectMultiScale(gray, regions, scaleFactor, minNeighbors,0|CV_HAAR_SCALE_IMAGE, minSize, maxSize);
-}
-
-// Draw rectangle r in color c on image i.
-//
-//static void drawRectangle(CvMat &i, const CvScalar &c, const CvRect &r)
-static void drawRectangle(IplImage* image, const CvScalar &c, const CvRect &r)
-{
+    //static const cv::Scalar bluecolor = cv::Scalar(255,   0,   0);
     static const int thickness = 4;
-    static const int lineKind = 8;
+    static const int linekind = 8;
     static const int shift = 0;
-    // draws a rectangle with given coordinates of the upper left
-    //	and lower right corners into an image
-    CvPoint ul; CvPoint lr;
-    ul.x = r.x;
-    ul.y = r.y;
-    lr.x = r.x + r.width;
-    lr.y = r.y + r.height;
-    //cvRectangle(image, r, c, thickness, lineKind, shift);
-    cvRectangle(image, ul, lr, c, thickness, lineKind, shift);
-}
+    static size_t facecount = faces.size() > 0 ? faces.size():0;
 
+    for (size_t i = 0; i < facecount; ++i)
+    {
+        const detectarray &rect = faces[i];
 
-//static void drawBody(CvMat &frame, const CvRect &body,
-static void drawBody(IplImage* frame, const std::vector<Rect> &bodies)
-{
-    static const CvScalar blue = cvScalar(255,   0,   0);
-    const size_t bodyCount = bodies.size() > 0 ? bodies.size():0;
-    for (size_t b = 0; b < bodyCount; ++b) {
-        const Rect &body = bodies[b];
-        drawRectangle(frame, blue, body);
+        // draws a rectangle with given coordinates of the upper left
+        // and lower right corners into an image
+        CvPoint ul, lr;
+        ul.x = rect[0];
+        ul.y = rect[1];
+        lr.x = rect[2];
+        lr.y = rect[3];
+
+        cv::rectangle(frame, ul, lr, color, thickness, linekind, shift);  // use C++ API instead of C API. Use the rectangle function in the "cv::Rectangle" namespace instead of "cvRectangle":
+
     }
-
-    //const size_t faceCount = faces.size() > 1 ? 1 : faces.size();
-    //for (size_t f = 0; f < faceCount; ++f) {
-    //    const CvRect &face = faces[f];
-    //    drawRectangle(frame, green, face + bodyLocation);
-    //    const CvPoint faceLocation = face.tl() + bodyLocation;
-    //    const size_t eyeCount = eyes.size() > 2 ? 2 : eyes.size();
-    //    for (size_t e = 0; e < eyeCount; ++e) {
-    //        drawRectangle(frame, red, eyes[e] + faceLocation);
-    //    }
-    //}
 }
 
-//static void displayBody(Mat &frame,
-static void displayBody(IplImage* frame,
-                        CascadeClassifier &bodyHaar)
-{
-    static Mat gray;
-    cvtColor(Mat(frame), gray, CV_BGR2GRAY);
-    equalizeHist(gray,gray);
-    static std::vector<Rect> bodyRects;
-    detectCascade(bodyHaar, gray, bodyRects);
-    drawBody(frame, bodyRects);
-    //for (size_t i=0; i<bodyRects.size(); ++i){
-        //const cv::Mat bodyROI = gray(bodyRects[i]);
-        //static std::vector<cv::Rect> faces;
-        //detectCasecade(faceHaar, bodyROI, faces);
-        //drawBody(frame, bodyRects[i], faces);
-    //imshow("cascade upper body detection",frame);
-    cvShowImage("cascade upper body detection",frame);
-}
 
-/*static CvVideoCapture openVideo(const char *source)
+String trim(const String& str, const String& whitespace = " \t", const char& r = '\r')
 {
-    int cameraId = 0;
-    std::istringstream iss(source);
-    iss >> cameraId;
-    if (iss) return CvVideoCapture(cameraId);
-    std::string filename;
-    std::istringstream sss(source);
-    sss >> filename;
-    if (sss) return CvVideoCapture(filename);
-    return CvVideoCapture(-1);
-}*/
-
-String trim(const String& str, const String& whitespace = " \t")
-{
+    String newstr;
     const auto strBegin = str.find_first_not_of(whitespace);
     if (strBegin == std::string::npos)
+    {
         return ""; // no content
+    }
 
     const auto strEnd = str.find_last_not_of(whitespace);
     const auto strRange = strEnd - strBegin + 1;
 
-    return str.substr(strBegin, strRange);
+    newstr = str.substr(strBegin, strRange);
+    if ((!newstr.empty()) && (newstr[newstr.size() - 1] == r))
+    {
+        newstr.erase(newstr.size() - 1);
+    }
+    return newstr;
 }
 
-const char *cascadeUpBodyName = "/home/ying/anaconda2/share/OpenCV/haarcascades/haarcascade_mcs_upperbody.xml";
-String  folder = "/home/ying/surveillance/multi_face_turning/";
-// extract Region of Interests: upper body
-stringstream  outnamestream;
-const char* outname_for_opencv;
-const char* filename_for_opencv;
-
-//int main(int argc, char *argv[])
-int main(void)
+// ////////////////////////////////////////////////////////////
+// initilize and open video recorders to store detecion results
+// ////////////////////////////////////////////////////////////
+void InitRecorder(int width, int height)
 {
-    //QCoreApplication a(argc, argv);
-    //IplImage *src_img = 0, *src_gray = 0;
-    vector<String> filenames;
-    glob(folder, filenames); // new function that does the job
+    cv::Size frame_size = cv::Size(width, height);
+    fg_output_video.open(fg_output_video_name, v_codecs, kFps, frame_size); // For writing the detection video
+    mask_video.open(mask_video_name, v_codecs, kFps, frame_size); // For writing the mask video
+    upper_output_video.open(fg_output_video_name, v_codecs, kFps, frame_size);
 
-    String  currFileIndexStr = "02"; // to_string
-    String  readFileName;
-    String  readImageName;
-    CvMat  firstFrame;
-    const int outfont = FONT_HERSHEY_SIMPLEX;
-    int LINE_AA=16;
-    //int fgThreshold = 12;
-    //fgdetector = MotionDetctorInstaneous(doMotionDetect=true, frameWidth=720, frameHeight=576, threshold=fgthreshold);
-    //facedetector = FaceDetector(frameWidth=720, frameHeight=576);
-    //upperdetector = UpperbodyDtector(frameWidth=720, frameHeight=576);
-    //outwriter4upper = upperdetector.outwriter
-    //outwriter = facedetector.outwriter;
-    //outfont = facedetector.font;
-    //multiScale = facedetector.multiScale;
-    //scale_factor = facedetector.scale_factor;
-    //faceThreshold = facedetector.threshold;
-    //minFaceSize = facedetector.minFaceSize;
-    String datafolderRootStr = "/home/ying/";
-    String datafolderStr = "/home/ying/surveillance/";
-    cout << "Processing file " + currFileIndexStr + "..." << endl;
-    readFileName = datafolderStr + "video-fold/video-fold-" + currFileIndexStr + ".txt";
-    cout << readFileName << endl;
-    //fileName = "fold-" + currFileIndexStr + "-out.txt";
-    String resultfolderStr = "/home/ying/QtProjects/codetransfer-test/results/";
-    //writeFileName = datafolderStr + fileName;
-    //writeFile = open(writeFileName,'w');
+}
 
-    ifstream inputfile(readFileName);
-    cout << "OK" +to_string(inputfile.is_open()) << endl;
+// /////////////////////////////////////////////////////////
+// get file names from the indicated folder
+// return: listed image file names for the test video stream
+// /////////////////////////////////////////////////////////
+vector<String> ReadFrameFolder()
+{
+    String  read_file_name;
+    vector<String> file_names;
+    vector<String> file_name_array;
     String str;
-    int firstFrameIndex = 0; // first frame   
-    if(!inputfile.is_open())
+
+    glob(input_folder_, file_names); // new function that does the job
+
+    cout << "Processing file " + curr_file_index_str_ + "..." << endl;
+    read_file_name = data_folder_str_ + "video-fold/video-fold-" + curr_file_index_str_ + ".txt";
+    cout << read_file_name << endl;
+
+    ifstream input_file(read_file_name);
+    cout << "OK" +to_string(input_file.is_open()) << endl;
+
+    if(!input_file.is_open())
     {
-        cout << "Error" + readFileName << endl;
+        cout << "Error" + read_file_name << endl;
         cerr << "Error: " << strerror(errno);
     }
 
-    vector<String> fileNameArray;
-    //int frameCount =0 ;
-
-    while (getline(inputfile, str))
+    while (getline(input_file, str))
     {
-        cout << "OK Getline  " + str << endl;
-        //fileNameArray[frameCount] = str;
-        fileNameArray.push_back(str);
-        //frameCount++;
+        file_name_array.push_back(str);
     }
-    int frameCount = fileNameArray.size();
 
-    cout << "OK read first image  " + readImageName  << endl;
-    readImageName = datafolderRootStr+fileNameArray[firstFrameIndex]; //.rstrip;
-    cout << "OK read first image2  " + readImageName  << endl;
-    //readImageName = remove(readImageName.begin(), readImageName.end(), ' ');
-    readImageName = trim(readImageName);
-    firstFrame = imread(readImageName);
-    //fgDetector.initializeFrame(firstFrame);
-    vector<CvRect> prevrectangles;
-    vector<CvRect> upprectangles;
-    vector<CvRect> rectangles;
-    vector<CvMat> fgmask;
-    Mat orgCurFrame;
-    Mat showCurFrame;
+    cout << "OK, framename file Getline is done."<< endl;
 
-    for (int iframe=0; iframe<frameCount; ++iframe)
+    return file_name_array;
+
+}
+
+// ///////////////////////////////////
+// destroy imshow windows
+// release opened video recorders
+// ///////////////////////////////////
+void ReleaseRecorder()
+{
+    destroyAllWindows();
+    waitKey(1);
+
+    if (upper_output_video.isOpened())
+    {
+        upper_output_video.release();
+    }
+    if (mask_video.isOpened())
+    {
+        mask_video.release();
+    }
+    if (final_output_video.isOpened())
+    {
+        final_output_video.release();
+    }
+}
+
+// ///////////////////////////////////////////////////////////////////////////////////////
+// enlarge input region list (2D vector)
+// param: input region list (2D vector)
+// param(output): reference region list (2D vector) of enlarged regions
+// return: length of the result region list (2D vector)
+// ///////////////////////////////////////////////////////////////////////////////////////
+int CreatePrevFrameRect(const vector2d &rects_in, vector2d &rects_out)
+{
+    rects_out = {};
+    if (!rects_in.empty())
+    {
+        int x1, x2, y1, y2;
+        int x1new, x2new, y1new, y2new;
+        int wrect, hrect;
+        int rect_area;
+        float area_rate;
+        detectarray new_rect;
+
+        for(size_t irect=0; irect<rects_in.size(); ++irect) // for irect in rect_nomove
+        {
+            const detectarray &rect = rects_in[irect];
+            x1 = rect[0];
+            y1 = rect[1];
+            x2 = rect[2];
+            y2 = rect[3];
+            wrect = x2-x1;
+            hrect = y2-y1;
+            y2new = std::min(int(frame_height_),y2+ int(hrect*0.5));
+            y1new = std::max(0,y1- int(hrect*0.5));
+            x2new = std::min(int(frame_width_),x2+ int(wrect*0.5));
+            x1new = std::max(0,x1- int(wrect*0.5));
+            rect_area = (y2new-y1new+1)*(x2new-x1new+1);
+            area_rate = float(rect_area)/float(frame_area_);
+            if(area_rate>0.1) //1/8
+            {
+                y2new = std::min(int(frame_height_), y2 + int(hrect*0.125));
+                y1new = std::max(0, y1 - int(hrect*0.125));
+                x2new = std::min(int(frame_width_), x2 + int(wrect*0.125));
+                x1new = std::max(0, x1 - int(wrect*0.125));
+                rect_area = (y2new-y1new+1)*(x2new-x1new+1);
+            }
+            new_rect[0] = x1new;    // first rectangle top left x
+            new_rect[1] = y1new;    // first rectangle top left y
+            new_rect[2] = x2new;  // first rectangle bottom right x
+            new_rect[3] = y2new; // first rectangle bottom right y
+            new_rect[4] = rect[4];
+            new_rect[5] = current_scale_;
+            new_rect[6] = rect_area;  //rect_area
+
+            rects_out.push_back(new_rect);
+        }
+        return rects_out.size();
+    }
+    else
+    {
+        cout<< "input vector2d is empty" << endl;
+        return 0;
+    }
+
+}
+
+int main(void)
+{
+    //get file names from the indicated folder
+    cv::Mat first_frame;
+    String  read_image_name;
+
+    vector<String> file_name_input_list;
+    String str;
+    int first_frame_index = 0; // first frame
+
+    file_name_input_list = ReadFrameFolder();
+    int frame_count = file_name_input_list.size();
+
+    //read the first frame
+    read_image_name = data_folder_root_str_ +file_name_input_list[first_frame_index]; //.rstrip;
+    cout << "OK read first image " + read_image_name  << endl;
+    read_image_name = trim(read_image_name);
+    cout << "read_image_name =" + read_image_name  << endl;
+    first_frame = cv::imread(read_image_name, CV_LOAD_IMAGE_COLOR);
+
+    // check whether the first frame has been loaded from image file
+    if(first_frame.empty())
+    {
+        cout<<"image not found or read!<<endl";
+        exit (EXIT_FAILURE);
+    }
+
+    //check frame size setting
+    cv::Size first_frame_size = first_frame.size();
+    cout << "first_frame_size = " << first_frame.size() << endl;
+    int first_frame_width = first_frame_size.width;
+    int first_frame_height= first_frame_size.height;
+
+    if((first_frame_width!=frame_width_)||(first_frame_height!=frame_height_))
+    {
+        cout << "frame size is set wrong!: size of first frame is different from the settings." << endl;
+        cout << "first_frame_width = "  << first_frame_width << endl;
+        cout << "first_frame_height = " << first_frame_height << endl;
+        exit (EXIT_FAILURE);
+    }
+
+
+    // initilize 2D vectors to store the intermediate and final dection results
+    static vector2d output_rectangles = {};
+    static vector2d prev_rectangles = {};
+    static vector2d fg_rectangles = {};
+    static vector2d upper_rectangles = {};
+    static vector2d new_fg_rectangles = {};
+    static vector2d new_upper_rectangles = {};   
+    static vector2d rect_nomask = {};
+    static vector2d rect_nostill = {};
+    static vector2d prev_rect_nomove = {};
+
+    // create upperbody detector
+    UpperbodyDetector upperdetector(frame_width_, frame_height_, b_upper_rescale_);
+    // create foreground detector
+    MotionDector fgdetector(frame_width_, frame_height_, fg_threshold_, fg_min_face_size_);
+
+    // initialize the first frame for foreground detector
+    fgdetector.InitilizeFirstFrame(first_frame); // no foreground detection at the 1st frame ???
+
+    // initialize video recorders
+    InitRecorder(frame_width_, frame_height_);
+
+    // process each frame in the test stream
+    for (int iframe=0; iframe<200; ++iframe)  //frame_count
     {
         if(iframe%100==0)
         {
-            cout << "Processing image: " + to_string(iframe) << endl;
+            cout << "Processing image: " + to_string(iframe) << endl; // processing start
         }
-        readImageName = datafolderRootStr+fileNameArray[iframe];
-        //readImageName = remove(readImageName.begin(), readImageName.end(), ' ');
-        readImageName = trim(readImageName);
-        orgCurFrame  = imread(readImageName,CV_LOAD_IMAGE_COLOR);
-        showCurFrame = imread(readImageName,CV_LOAD_IMAGE_COLOR);
-        //imageShow
-        vector<CvRect> rectNoMove;
-        vector<CvRect> rectMove;
-        vector<CvRect> rectNoMask;
-        vector<CvRect> rectMask;
+        read_image_name  = data_folder_root_str_ +file_name_input_list[iframe];
+        read_image_name  = trim(read_image_name);
+        // load frame as original image
+        curr_frame_org   = imread(read_image_name,CV_LOAD_IMAGE_COLOR);
+        // a frame copy for drawing and storing the detection results
+        curr_frame_4show = curr_frame_org.clone(); // for cvShowImage
+
         if(iframe >= 0)
         {
-            //fgrectangles,fgmask = fgdetector.run(curframe, icurframe);
-            //upprectangles,fgmask = fgdetector.run(curframe, icurframe);
-            //upprectangles = upperdetector.detect_upperbody(curframe) ;
-            // select no moving previous frame rectangles which is not overlapped with fgrectangle
-            //if (len(rectangles)>0)
-            //rectnomove, rectmove = check_prevfr_facemove(rectangles,fgrectangles,fgmask,framewidth,frameheight,0.65,0.15)
-            //# include the detected face rectangles from the previous frame
-            //prevrectangles = []
-            //if (len(rectnomove)>0):
-            //      for rect in rectnomove:    # draw recta
-        }
+            cout<<"fg_detect start... F#=" <<iframe<<endl;
+            fgdetector.Run(curr_frame_org, iframe, fg_rectangles);
+            fgdetector.GetFgMask(fgmask); // read out fgmask
+            cvtColor(fgmask, fgmask_rgb, CV_GRAY2BGR);
+            imwrite( "Binary_Image2.jpg", fgmask_rgb);
+            cout<<"upp_detect start... F#=" <<iframe<<endl;
+            fgdetector.CleanFgMaskBuf();
+            upperdetector.Run(curr_frame_org, iframe, upper_rectangles);
 
-        /*if (!prevrectangles.empty())
-        {
-            // display nonoverlapped upperbody rectangles
-            String str = "frame# = " + to_string(iframe);
-            putText(showCurFrame, str, Point(25,30), outfont, 1, Scalar(0,0,0), 1, LINE_AA);
-            for (size_t irect=0; irect<upprectangles.size(); ++irect)
+            // select no moving previous detected rectangles that are not overlapped with current detected foreground rectangles
+            if (!output_rectangles.empty())
             {
-                CvRect upprect = upprectangles[irect];
-                CvPoint ul; CvPoint lr;
-                ul.x = upprect.x;
-                ul.y = upprect.y;
-                lr.x = upprect.x + upprect.width;
-                lr.y = upprect.y + upprect.height;
-                //IplImage* showCurFrameCopy = cvCloneImage(&(IplImage)showCurFrame);
-                IplImage showCurFrameCopy = IplImage(showCurFrame);
-                cvRectangle(&showCurFrameCopy, ul, lr, Scalar(255, 0, 255), 2);
-                imshow("upperbody", showCurFrame);
-                waitKey(1000/10);
-
+                fgdetector.CheckPrevRectsOnFg(fg_rectangles, output_rectangles, prev_rect_nomove, fgmask, THRESHOLD_RECTOVERLAP, THRESHOLD_INFG);
             }
-        }*/
 
-    }
+            //enlarge detected rectangles in the previous frame, where the regions are not heavy overlapped with current foreground
+            CreatePrevFrameRect(prev_rect_nomove, prev_rectangles);
 
-    //const char *cascadeUpBodyName = "/home/ying/anaconda2/share/openCV/haarcascades/haarcascade_mcs_upperbody.xml";
-    qDebug()<<"Use haarcasecade upperbody detection in the video sequence"<<endl<<endl;
-    std::cout <<"up body detecion ..." << std::endl;
-    //::CascadeClassifier bodyHaar(av[1]);
-    CascadeClassifier bodyHaar;
-    bodyHaar.load(cascadeUpBodyName);
-    const bool detectStatus = !bodyHaar.empty();
-    //qDebug()<<!bodyHaar.empty()<<endl<<endl;
-    if(detectStatus){
-        for(size_t iframe=0; iframe<50; ++iframe ) //unsigned int  filenames.size()
-        {
-            filename_for_opencv = static_cast<const char*>(filenames[iframe].c_str());
-            IplImage* currframe = cvLoadImage( filename_for_opencv, 1 );
-            Mat framecopy = Mat(currframe);
-            if(!framecopy.empty())
+            // keep the upperbody detection results that are not heavily overlapped with the existing detected rectangles
+            if ((!upper_rectangles.empty())&&(!fg_rectangles.empty()))
             {
-                displayBody(currframe, bodyHaar);
+                rect_nomask = {};
+                upperdetector.CheckPrevFrameRectNoMask(upper_rectangles,fg_rectangles,rect_nomask,THRESHOLDOVERLAP_1);
+                if (!rect_nomask.empty())
+                {
+                    for(size_t irect=0; irect<rect_nomask.size(); ++irect)
+                    {
+                        const detectarray &upprect = rect_nomask[irect];
+                        new_upper_rectangles.push_back(upprect);
+                    }
+                }
             }
-            const int c = waitKey(1000/10);
-            if( c!=-1 ) break;
-        }
-        return 0;
-    }
-    return 1;
+            else if (!upper_rectangles.empty())
+            {
+                new_upper_rectangles=upper_rectangles;
+            }
+
+            // merge new upperbody detection results with the previous frame results
+            if (!new_upper_rectangles.empty())
+            {
+                for (size_t irect=0; irect<new_upper_rectangles.size(); ++irect)
+                {                   
+                    const detectarray &upprect = new_upper_rectangles[irect];
+                    prev_rectangles.push_back(upprect);
+                }
+            }
+
+            // merge the listed rectangles
+            if (prev_rectangles.size()>1)
+            {
+                // NMS delete large rectangles overlappted with small rectangles
+                sort(prev_rectangles.begin(), prev_rectangles.end(),[](const detectarray &a, const detectarray &b) {\
+                    return a[6] > b[6]; });  //descending order
+                prev_rectangles = upperdetector.MaskNms(prev_rectangles, THRESHOLDNMS_DN_1, frame_size_);
+                // NMS delete small rectangles overlappted with large rectangles  
+                sort(prev_rectangles.begin(), prev_rectangles.end(),[](const detectarray &a, const detectarray &b) {\
+                    return a[6] < b[6]; });  //ascending order
+                prev_rectangles = upperdetector.MaskNms(prev_rectangles, THRESHOLDNMS_UP, frame_size_); //rescale issue has been considered in  detection_size_, THRESHOLD_MASKMNS = 0.5
+            }
+
+            // display detection results
+            if (!prev_rectangles.empty())
+            {
+                // display nonoverlapped upperbody rectangles
+                String str = "frame# = " + to_string(iframe);
+                putText(curr_frame_4show, str, cv::Point(25,30), kOutFont, 1, cv::Scalar(0,0,0), 1, LINE_AA);
+                putText(fgmask_rgb, str, cv::Point(25,30), kOutFont, 1, Scalar(255,255,255), 1, LINE_AA); // put date on the frame cv::LINE_AA=16
+                // draw rectangles imageframe 
+                DrawRectangleOnFrame(curr_frame_4show, prev_rectangles);
+                upper_output_video.write(curr_frame_4show);
+                mask_video.write(fgmask_rgb);
+                cv::imshow("Upperbody Image", curr_frame_4show); // use C++ API cv::imshow, instead of using C API cvShowImage
+                waitKey(1);
+                cv::imshow("FG", fgmask_rgb);
+                waitKey(1);
+            }
+
+            // add foreground detection
+            if ((!fg_rectangles.empty())&&(!prev_rectangles.empty()))
+            {
+                rect_nostill ={};
+                upperdetector.CheckPrevFrameRectNoMask(fg_rectangles,prev_rectangles,rect_nostill,THRESHOLDOVERLAP_2);
+                if (!rect_nostill.empty())
+                {
+                    for(size_t irect=0; irect<rect_nostill.size(); ++irect)
+                    {
+                        const detectarray &rect = rect_nostill[irect];
+                        new_fg_rectangles.push_back(rect);
+                    }
+                }
+            }
+            else if(!fg_rectangles.empty())
+            {
+               new_fg_rectangles = fg_rectangles;
+            }
+
+            // merge the listed rectangles,
+            // add new foreground detection to the existing rectangle list (prev_rectangles)
+            if (!prev_rectangles.empty())
+            {
+                for (size_t irect=0; irect<prev_rectangles.size(); ++irect)
+                {
+                    const detectarray &rect = prev_rectangles[irect];
+                    new_fg_rectangles.push_back(rect);
+                }
+            }
+
+            // merge the listed rectangles
+            if (new_fg_rectangles.size()>1)
+            {
+                // NMS delete large rectangles overlappted with small rectangles
+                sort(new_fg_rectangles.begin(), new_fg_rectangles.end(),[](const detectarray &a, const detectarray &b) {\
+                    return a[6] > b[6]; });  //descending order
+                new_fg_rectangles = upperdetector.MaskNms(new_fg_rectangles, THRESHOLDNMS_DN_2, frame_size_);
+                // NMS delete small rectangles overlappted with large rectangles
+                sort(new_fg_rectangles.begin(), new_fg_rectangles.end(),[](const detectarray &a, const detectarray &b) {\
+                    return a[6] < b[6]; });  //ascending order
+                new_fg_rectangles = upperdetector.MaskNms(new_fg_rectangles, THRESHOLDNMS_UP, frame_size_);
+            }
+
+            if (!new_fg_rectangles.empty())
+            {
+                String str = "frame# = " + to_string(iframe);
+                // draw rectangles imageframe  ????           
+                DrawRectangleOnFrame(curr_frame_4show, new_fg_rectangles);
+                putText(curr_frame_4show, str, cv::Point(25,30), kOutFont, 1, cv::Scalar(0,0,0), 1, LINE_AA);
+                final_output_video.write(curr_frame_4show);
+                cv::imshow("Final Image", curr_frame_4show); // cvShowImage
+                waitKey(1);
+                cv::imshow("FG",  fgmask_rgb);
+                const int c = waitKey(1000/10);
+                if( c!=-1 ) break;
+            }
+
+        }//iframe>=0
+
+        prev_rectangles = {};     // in upgrade version this should not be cleared after processing a frame
+        fg_rectangles = {};
+        upper_rectangles = {};
+        new_fg_rectangles = {};
+        new_upper_rectangles = {};
+
+        rect_nomask = {};
+        rect_nostill = {};
+
+        fgmask = Mat::zeros(frame_height_, frame_width_, CV_8U);
+        fgmask_rgb = Mat::zeros(frame_height_, frame_width_, CV_8UC3);
+
+    }// for (int iframe=0; iframe<frame_count; ++iframe)
+
+    ReleaseRecorder();
+
+    return 0;
+
 }

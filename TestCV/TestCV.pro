@@ -10,7 +10,8 @@ CONFIG -= app_bundle
 TEMPLATE = app
 
 SOURCES += main.cpp \
-    MotionDetector.cpp
+    upperbodydetector.cpp \
+    motiondetector.cpp
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which as been marked deprecated (the exact warnings
@@ -27,8 +28,11 @@ INCLUDEPATH += /homr/ying/opencv/include/opencv
 INCLUDEPATH += /homr/ying/opencv/include/opencv2
 #INCLUDEPATH += /homr/ying/anaconda2/include/opencv
 #INCLUDEPATH += /homr/ying/anaconda2/include/opencv2
-LIBS += -L/usr/lib/x86_64-linux-gnu -lopencv_core -lopencv_imgcodecs -lopencv_highgui -lopencv_imgproc -lopencv_objdetect
+LIBS += -L/usr/lib/x86_64-linux-gnu -lopencv_core -lopencv_imgcodecs -lopencv_highgui -lopencv_imgproc -lopencv_objdetect -lopencv_video
+
 #LIBS += -L/usr/local/lib -lopencv_core -lopencv_imgcodecs -lopencv_highgui
 
 HEADERS += \
-    MotionDetector.hpp
+    upperbodydetector.h \
+    motiondetector.h \
+    facedetection.h
