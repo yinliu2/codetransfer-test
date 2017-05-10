@@ -1,6 +1,6 @@
-#include <facedetection.h>
-#include <motiondetector.h>
-#include <upperbodydetector.h>
+#include "detection.h"
+#include "motiondetector.h"
+#include "upperbodydetector.h"
 
 // extend cv::VideoCapture.  The const_cast<>()s
 // work around the missing member const on cv::VideoCapture::get().

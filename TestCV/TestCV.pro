@@ -11,7 +11,8 @@ TEMPLATE = app
 
 SOURCES += main.cpp \
     upperbodydetector.cpp \
-    motiondetector.cpp
+    motiondetector.cpp \
+    cascadecnndetector.cpp
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which as been marked deprecated (the exact warnings
@@ -35,4 +36,5 @@ LIBS += -L/usr/lib/x86_64-linux-gnu -lopencv_core -lopencv_imgcodecs -lopencv_hi
 HEADERS += \
     upperbodydetector.h \
     motiondetector.h \
-    facedetection.h
+    cascadecnndetector.h \
+    detection.h
