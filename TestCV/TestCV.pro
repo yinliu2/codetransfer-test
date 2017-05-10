@@ -35,4 +35,4 @@ LIBS += -L/usr/lib/x86_64-linux-gnu -lopencv_core -lopencv_imgcodecs -lopencv_hi
 HEADERS += \
     upperbodydetector.h \
     motiondetector.h \
-    facedetection.h
+    detection.h

@@ -34,11 +34,10 @@ typedef std::vector<array<int,7>> vector2d;
 #define THRESHOLDOVERLAP_1 0.65
 #define THRESHOLDOVERLAP_2 0.85
 
-static const String input_folder_ = "/home/ying/surveillance/multi_face_turning/";
-static const String data_folder_root_str_ = "/home/ying/";
-static const String data_folder_str_ = "/home/ying/surveillance/";
+static const String input_folder_ = "./surveillance/multi_face_turning/";
+static const String data_folder_root_str_ = "./";
+static const String data_folder_str_ = "surveillance/";
 static const String curr_file_index_str_ = "02";
-static const String result_folder_str_ = "/home/ying/QtProjects/codetransfer-test/results/";
 
 // recording parameters
 static const int kOutFont = FONT_HERSHEY_SIMPLEX;

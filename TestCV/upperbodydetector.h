@@ -45,7 +45,7 @@ private:
 
     const bool kMultiScale  = true;
     const int kStride  = 3;   
-    const char *kCascadeUpBodyName = "/home/ying/anaconda2/share/OpenCV/haarcascades/haarcascade_mcs_upperbody.xml";
+    const char *kCascadeUpBodyName = "./haarcascades/haarcascade_mcs_upperbody.xml";
     const float kThresholdNms = 0.5;         //THRESHOLD_MASKMNS 0.5
     //const float kThresholdOverlap = 0.65;  //THRESHOLD_PREV_OVERLAP 0.65
     const int kFlag =  0 | CASCADE_SCALE_IMAGE;
